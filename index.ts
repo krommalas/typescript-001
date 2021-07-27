@@ -39,7 +39,7 @@ function of(...dataList: any[]) {
   });
 }
 
-function from(dataList): any[] {
+function from(dataList:any[]) {
   return new Observable(observer => {
     dataList.forEach(data => observer.next(data));
     observer.complete();
