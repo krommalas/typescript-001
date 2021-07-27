@@ -1,0 +1,119 @@
+console.clear();
+interface Observer {
+  next: (value: any) => void;
+  err: (err: any) => void;
+  complete: () => void;
+}
+type TearDown = () => void;
+
+class Subscription {
+  teardownList: TearDown[] = [];
+  constructor(teardown?: TearDown) {
+    if (teardown) {
+      this.teardownList.push(teardown);
+    }
+  }
+  add(subscription: Subscription) {
+    this.teardownList.push(() => subscription.unsubscribe());
+  }
+  unsubscribe() {
+    this.teardownList.forEach(teardown => teardown());
+    this.teardownList = [];
+  }
+}
+
+class Observable {
+  subscriber: (observer: Observer) => TearDown;
+  constructor(subscriber: (observer: Observable) => TearDown) {
+    this.subscriber = subscriber;
+  }
+  subscribe(observer: Observer) {
+    const teardown: TearDown = this.subscriber(observer);
+    const subscription = new Subscription(teardown);
+    return subscription;
+    // return { unsubscribe: () => teardown() };
+  }
+}
+
+function fromPromise<T>(promise: Promise<T>) {
+  return new Observable(observer => {
+    let closed = false;
+    promise
+      .then(data => {
+        if (!closed) {
+          observer.next(data);
+          observer.complete();
+        }
+      })
+      .catch(err => {
+        observer.error(err);
+      });
+    return () => {
+      close = true;
+    };
+  });
+}
+
+function Interval(millisec: number) {
+  return new Observable(observer => {
+    let i = 0;
+    const index = setInterval(() => observer.next(i++), millisec);
+    const teardown = () => clearInterval(index);
+    return teardown;
+  });
+}
+
+function of(...dataList: any[]) {
+  return new Observable(observer => {
+    dataList.forEach(data => observer.next(data));
+    observer.complete();
+    return () => {};
+  });
+}
+
+function from(dataList: any[]) {
+  return new Observable(observer => {
+    dataList.forEach(data => observer.next(data));
+    observer.complete();
+    return () => {};
+  });
+}
+
+const observer1: Observer = {
+  next: (value: any) => console.log('observer1 Next :', value),
+  err: (err: any) => console.log('observer1 err :', err),
+  complete: () => console.log('observer1 complete')
+};
+
+const observer2: Observer = {
+  next: (value: any) => console.log('observer2 Next :', value),
+  err: (err: any) => console.log('observer2 err :', err),
+  complete: () => console.log('observer2 complete')
+};
+
+const promiseNaja = fetch('https://www.anapioficeandfire.com/api/books/1', {
+  method: 'GET'
+});
+
+//const source = Interval(2000);
+//const source = of(10,20,30,40,50,60,70);
+//const source = from(['banana', 'old-banana', 'apple']);
+const subscription = new Subscription();
+
+// const subscription1 = Interval(1000).subscribe(observer1);
+// const subscription2 = Interval(1000).subscribe(observer2);
+// subscription.add(Interval(1000).subscribe(observer1));
+// subscription.add(Interval(1000).subscribe(observer2));
+
+const book$ = fromPromise(promiseNaja);
+book$.subscribe(observer1);
+
+// subscription.add(subscription1);
+// subscription.add(subscription2);
+//const subscription = source.subscribe(observer);
+setTimeout(() => {
+  //subscription.unsubscribe();
+  // subscription1.unsubscribe();
+  // subscription2.unsubscribe();
+  subscription.unsubscribe();
+}, 5000);
